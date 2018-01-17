@@ -25,14 +25,14 @@ namespace azure_usage_report
 
                 var response = await this.Client.SendAsync(request).ConfigureAwait(continueOnCapturedContext: false);
 
-                if (response.StatusCode != HttpStatusCode.OK)
-                {
-                    throw new InvalidOperationException($"Failed to get locations. Response: '{response.StatusCode}'.");
-                }
-
                 var content = await response.Content
                     .ReadAsStringAsync()
                     .ConfigureAwait(continueOnCapturedContext: false);
+
+                if (response.StatusCode != HttpStatusCode.OK)
+                {
+                    throw new InvalidOperationException($"Failed to get locations. Response: '{response.StatusCode}': '{content}'.");
+                }
                 
                 var locations = JsonConvert.DeserializeObject<ResponseWithContinuation<Location>>(content);
 

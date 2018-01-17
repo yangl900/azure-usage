@@ -10,10 +10,6 @@ namespace azure_usage_report
     {
         private const string Resource = "https://management.azure.com/";
 
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="tenantId"></param>
         public static AuthenticationResult GetToken(string tenantId, string clientId, string clientSecret)
         {
             LoggerCallbackHandler.UseDefaultLogging = false;

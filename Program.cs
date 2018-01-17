@@ -28,6 +28,7 @@ namespace azure_usage_report
             var titleOption = app.Option("--title", "Table and Markdown output title. Ignored in JSON output.", CommandOptionType.SingleValue);
             var usageOption = app.Option("-n|--usage-name", "Show only specified usages, e.g. cores. Can specify multiple values.", CommandOptionType.MultipleValue);
             var subscriptionFilterOption = app.Option("-p|--subscription-pattern", "Show only specified subscriptions, support regex. Can specify multiple values.", CommandOptionType.MultipleValue);
+            var accessTokenOption = app.Option("--access-token", "Specify Azure Resource Manager access token directly. Service principal will be ignored in this case.", CommandOptionType.SingleValue);
 
             app.Command("list", (command) =>
             {
@@ -40,10 +41,11 @@ namespace azure_usage_report
                 command.Options.Add(outputOption);
                 command.Options.Add(usageOption);
                 command.Options.Add(subscriptionFilterOption);
+                command.Options.Add(accessTokenOption);
 
                 command.OnExecute(() =>
                     {
-                        if (!tenantId.HasValue() || !clientId.HasValue() || !clientSecret.HasValue())
+                        if (!accessTokenOption.HasValue() && !(tenantId.HasValue() && clientId.HasValue() && clientSecret.HasValue()))
                         {
                             Console.WriteLine(app.GetHelpText());
                             return 1;
@@ -73,7 +75,14 @@ namespace azure_usage_report
 
                         var filter = usageOption.HasValue() ? usageOption.Values.ToArray() : new string[0];
 
-                        var usages = Program.GetUsage(tenantId.Value(), clientId.Value(), clientSecret.Value(), filter, subscriptionPattern).Result;
+                        var accessToken = Program.GetAccessToken(accessTokenOption, tenantId, clientId, clientSecret);
+                        if (string.IsNullOrEmpty(accessToken))
+                        {
+                            Console.WriteLine("Failed to get access token.");
+                            return 1;
+                        }
+
+                        var usages = Program.GetUsage(accessToken, filter, subscriptionPattern).Result;
                         Console.WriteLine(JsonConvert.SerializeObject(usages, Formatting.Indented));
 
                         return 0;
@@ -92,10 +101,11 @@ namespace azure_usage_report
                 command.Options.Add(usageOption);
                 command.Options.Add(subscriptionFilterOption);
                 command.Options.Add(titleOption);
+                command.Options.Add(accessTokenOption);
 
                 command.OnExecute(() =>
                 {
-                    if (!tenantId.HasValue() || !clientId.HasValue() || !clientSecret.HasValue())
+                    if (!accessTokenOption.HasValue() && !(tenantId.HasValue() && clientId.HasValue() && clientSecret.HasValue()))
                     {
                         Console.WriteLine(app.GetHelpText());
                         return 1;
@@ -124,10 +134,16 @@ namespace azure_usage_report
                         : new Regex(".*", RegexOptions.Compiled | RegexOptions.IgnoreCase, TimeSpan.FromSeconds(5));
 
                     var specifiedUsages = usageOption.HasValue() ? usageOption.Values.ToArray() : new string[0];
+
+                    var accessToken = Program.GetAccessToken(accessTokenOption, tenantId, clientId, clientSecret);
+                    if (string.IsNullOrEmpty(accessToken))
+                    {
+                        Console.WriteLine("Failed to get access token.");
+                        return 1;
+                    }
+
                     var usages = Program.GetUsage(
-                        tenantId: tenantId.Value(), 
-                        clientId: clientId.Value(), 
-                        clientSecret: clientSecret.Value(), 
+                        accessToken: accessToken, 
                         specifiedUsages: specifiedUsages,
                         subscriptionPattern: subscriptionPattern).Result;
 
@@ -194,16 +210,15 @@ namespace azure_usage_report
             app.Execute(args);
         }
 
-        static async Task<SubscriptionUsage[]> GetUsage(string tenantId, string clientId, string clientSecret, string[] specifiedUsages, Regex subscriptionPattern)
+        private static string GetAccessToken(CommandOption accessTokenOption, CommandOption tenantIdOption, CommandOption clientIdOption, CommandOption clientSecretOption)
         {
-            var authResult = AuthUtil.GetToken(tenantId, clientId, clientSecret);
+            return accessTokenOption.HasValue()
+                ? accessTokenOption.Value()
+                : AuthUtil.GetToken(tenantIdOption.Value(), clientIdOption.Value(), clientSecretOption.Value())?.AccessToken;
+        }
 
-            if (authResult == null)
-            {
-                Console.WriteLine("Failed to authenticate with Azure.");
-            }
-
-            var accessToken = authResult.AccessToken;
+        static async Task<SubscriptionUsage[]> GetUsage(string accessToken, string[] specifiedUsages, Regex subscriptionPattern)
+        {
             var subscriptionsProvider = new SubscriptionsDataProvider();
             var usageProvider = new UsageDataProvider();
             var locationsProvider = new LocationsDataProvider();

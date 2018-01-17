@@ -25,14 +25,14 @@ namespace azure_usage_report
 
                 var response = await this.Client.SendAsync(request).ConfigureAwait(continueOnCapturedContext: false);
 
-                if (response.StatusCode != HttpStatusCode.OK)
-                {
-                    throw new InvalidOperationException($"Failed to get subscriptions. Response: '{response.StatusCode}'.");
-                }
-
                 var content = await response.Content
                     .ReadAsStringAsync()
                     .ConfigureAwait(continueOnCapturedContext: false);
+
+                if (response.StatusCode != HttpStatusCode.OK)
+                {
+                    throw new InvalidOperationException($"Failed to get subscriptions. Response: '{response.StatusCode}': '{content}'.");
+                }
                 
                 var tenants = JsonConvert.DeserializeObject<ResponseWithContinuation<Subscription>>(content);
 
