@@ -35,16 +35,17 @@ Use "azusage [command] --help" for more information about a command.
 ### Run the tool inside Azure Cloud Shell
 1. Open Cloud Shell [![Launch Cloud Shell](https://shell.azure.com/images/launchcloudshell.png "Launch Cloud Shell")](https://shell.azure.com)
 2. Run following command to run the container in Azure Container Instance. Output will be print in container logs.
+
 ```
 az container create -g demo -n azusage \
         --restart-policy Never \
         --image yangl/azure-usage:alpine \
         --command-line "dotnet azusage.dll summary --output table --access-token `az account get-access-token | jq .accessToken -r`"
-
 az container logs -g demo -n azusage
 ```
 
 ### Run the tool on local machine using Docker & service principal credential:
+
 ```
 docker run yangl/azure-usage:alpine summary --output table --client <sp-client-id> --secret <sp-secret> --tenant <tenant-id>
 ```
