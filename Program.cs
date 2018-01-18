@@ -167,7 +167,7 @@ namespace azure_usage_report
                     var regionalUsages = new List<RegionalUsage>();
                     foreach (var lgusage in locationGroupedUsages)
                     {
-                        foreach (var locationResourceGroup in lgusage.GroupBy(usage => usage.Name.Value, StringComparer.CurrentCultureIgnoreCase))
+                        foreach (var locationResourceGroup in lgusage.GroupBy(usage => usage.Name.Value, StringComparer.OrdinalIgnoreCase))
                         {
                             regionalUsages.Add(new RegionalUsage
                             {
@@ -232,7 +232,7 @@ namespace azure_usage_report
                 foreach (var regionalUsage in regionalUsages)
                 {
                     var reportUsages = regionalUsage.Value
-                        .Where(u => (!specifiedUsages.Any() && u.CurrentValue != 0) || specifiedUsages.Any(f => u.Name.Value.Equals(f, StringComparison.CurrentCultureIgnoreCase)))
+                        .Where(u => (!specifiedUsages.Any() && u.CurrentValue != 0) || specifiedUsages.Any(f => u.Name.Value.Equals(f, StringComparison.OrdinalIgnoreCase)))
                         .ToArray();
 
                     Array.ForEach(reportUsages, u => u.Location = regionalUsage.Key);
