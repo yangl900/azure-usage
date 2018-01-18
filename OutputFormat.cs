@@ -5,6 +5,7 @@ namespace azure_usage_report
     public enum OutputFormat
     {
         Json,
+        Csv,
         Table,
         Markdown
     }

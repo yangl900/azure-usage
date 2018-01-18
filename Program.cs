@@ -9,11 +9,16 @@ namespace azure_usage_report
     using Microsoft.Extensions.CommandLineUtils;
     using System.Text.RegularExpressions;
     using ConsoleTables;
+    using System.Net;
+    using System.Threading;
 
     class Program
     {
         static void Main(params string[] args)
         {
+            ThreadPool.SetMinThreads(96, 24); 
+            ServicePointManager.DefaultConnectionLimit = Environment.ProcessorCount * 64;
+
             var app = new CommandLineApplication();
 
             app.Name = "azusage";
@@ -123,9 +128,11 @@ namespace azure_usage_report
                         return 1;
                     }
 
-                    if (format != OutputFormat.Table && format != OutputFormat.Markdown)
+                    if (format != OutputFormat.Table 
+                        && format != OutputFormat.Markdown
+                        && format != OutputFormat.Csv)
                     {
-                        Console.WriteLine("Summary usage only support table or markdown output.");
+                        Console.WriteLine("Summary usage only support table, markdown or csv output.");
                         return 1;
                     }
 
@@ -153,49 +160,31 @@ namespace azure_usage_report
                         return 0;
                     }
 
-                    var groupedUsages = usages
+                    var locationGroupedUsages = usages
                         .SelectMany(usage => usage.Usages)
-                        .GroupBy(u => u.Name.Value);
+                        .GroupBy(u => u.Location, StringComparer.OrdinalIgnoreCase);
 
-                    var locations = usages
-                        .SelectMany(usage => usage.Usages)
-                        .Select(u => u.Location)
-                        .Distinct(StringComparer.OrdinalIgnoreCase)
-                        .ToArray();
-
-                    var summary = new Dictionary<string, int[]>();
-                    foreach (var group in groupedUsages)
+                    var regionalUsages = new List<RegionalUsage>();
+                    foreach (var lgusage in locationGroupedUsages)
                     {
-                        var usageSummary = locations
-                            .Select(location => group.Where(u => string.Equals(u.Location, location)).Sum(u => u.CurrentValue))
-                            .ToArray();
-
-                        summary.Add(group.Key, usageSummary);
+                        foreach (var locationResourceGroup in lgusage.GroupBy(usage => usage.Name.Value, StringComparer.CurrentCultureIgnoreCase))
+                        {
+                            regionalUsages.Add(new RegionalUsage
+                            {
+                                Location = lgusage.Key,
+                                Resource = locationResourceGroup.Key,
+                                Current = locationResourceGroup.Select(usage => usage.CurrentValue).Sum(),
+                                Limit = locationResourceGroup.Select(usage => usage.Limit).Sum()
+                            });
+                        }
                     }
 
-                    var columns = new string[] { "resource" }.Concat(locations).Append("total").ToArray();
-                    var table = new ConsoleTable(columns);
-                    
-                    foreach (var usageSummary in summary)
-                    {
-                        var row = new string[] { usageSummary.Key }
-                            .Concat(usageSummary.Value.Select(v => v.ToString("N0")))
-                            .Append(usageSummary.Value.Sum().ToString("N0"))
-                            .ToArray();
+                    var title = titleOption.HasValue() ? titleOption.Value() : null;
+                    var output = format == OutputFormat.Csv
+                        ? CsvFormater.FormatSummary(regionalUsages.ToArray())
+                        : TableFormater.FormatSummary(format, title, regionalUsages.ToArray());
 
-                        table.AddRow(row);
-                    }
-
-                    if (titleOption.HasValue())
-                    {
-                        var title = format == OutputFormat.Markdown
-                            ? "# " + titleOption.Value()
-                            : titleOption.Value();
-
-                        Console.WriteLine(title);
-                    }
-
-                    table.Write(format == OutputFormat.Markdown ? Format.MarkDown : Format.Alternative);
+                    Console.WriteLine(output);
                     return 0;
                 });
             });
