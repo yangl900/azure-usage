@@ -19,7 +19,7 @@ Options:
   -t|--tenant                The Azure tenant Id to sign in.
   -c|--client                Service principal client Id for accessing Azure subscriptions.
   -s|--secret                Service principal client secret for accessing Azure subscriptions.
-  -o|--output                Output format: Json, Table or Markdown.
+  -o|--output                Output format: Json, Table, Markdown or Csv.
   --title                    Table and Markdown output title. Ignored in JSON output.
   -n|--usage-name            Show only specified usages, e.g. cores. Can specify multiple values.
   -p|--subscription-pattern  Show only specified subscriptions, support regex. Can specify multiple values.

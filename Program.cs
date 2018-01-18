@@ -29,7 +29,7 @@ namespace azure_usage_report
             var tenantId = app.Option("-t|--tenant", "The Azure tenant Id to sign in.", CommandOptionType.SingleValue);
             var clientId = app.Option("-c|--client", "Service principal client Id for accessing Azure subscriptions.", CommandOptionType.SingleValue);
             var clientSecret = app.Option("-s|--secret", "Service principal client secret for accessing Azure subscriptions.", CommandOptionType.SingleValue);
-            var outputOption = app.Option("-o|--output", "Output format: Json, Table or Markdown.", CommandOptionType.SingleValue);
+            var outputOption = app.Option("-o|--output", "Output format: Json, Table, Markdown or Csv.", CommandOptionType.SingleValue);
             var titleOption = app.Option("--title", "Table and Markdown output title. Ignored in JSON output.", CommandOptionType.SingleValue);
             var usageOption = app.Option("-n|--usage-name", "Show only specified usages, e.g. cores. Can specify multiple values.", CommandOptionType.MultipleValue);
             var subscriptionFilterOption = app.Option("-p|--subscription-pattern", "Show only specified subscriptions, support regex. Can specify multiple values.", CommandOptionType.MultipleValue);
