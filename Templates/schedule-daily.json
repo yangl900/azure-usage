@@ -34,27 +34,24 @@
         },
         "container_command": {
             "defaultValue": [
-                "dotnet",
-                "azusage.dll",
-                "summary",
-                "--output",
-                "csv",
-                "--client",
-                "[parameters('client_id')]",
-                "--secret",
-                "@parameters('$client_secret')",
-                "--tenant",
-                "[parameters('tenant_id')]"
+                "/bin/sh",
+                "-c",
+                "CLIENT_SECRET=`cat /secrets/client_secret` && CLIENT_ID=`cat /secrets/client_id` && TENANT_ID=`cat /secrets/tenant_id` && dotnet azusage.dll summary --output csv --client $CLIENT_ID --secret $CLIENT_SECRET --tenant $TENANT_ID"
             ],
             "type": "array"
         },
         "connections_aci_name": {
             "defaultValue": "aci",
             "type": "string"
+        },
+        "container_name": {
+            "defaultValue": "task",
+            "type": "string"
         }
     },
     "variables": {
-        "container_group_resource_id": "[concat('/subscriptions/', subscription().subscriptionId ,'/resourceGroups/', resourceGroup().name, '/providers/Microsoft.ContainerInstance/containerGroups/task-', deployment().name)]"
+        "container_group_resource_id": "[concat('/subscriptions/', subscription().subscriptionId ,'/resourceGroups/', resourceGroup().name, '/providers/Microsoft.ContainerInstance/containerGroups/task-', deployment().name)]",
+        "container_group_log_id": "[concat('/subscriptions/', subscription().subscriptionId ,'/resourceGroups/', resourceGroup().name, '/providers/Microsoft.ContainerInstance/containerGroups/task-', deployment().name, '/containers/', parameters('container_name'), '/logs')]"
     },
     "resources": [
         {
@@ -76,6 +73,12 @@
                         },
                         "$client_secret": {
                             "type": "securestring"
+                        },
+                        "$client_id": {
+                            "type": "string"
+                        },
+                        "$tenant_id": {
+                            "type": "string"
                         }
                     },
                     "triggers": {
@@ -97,7 +100,7 @@
                                     "properties": {
                                         "containers": [
                                             {
-                                                "name": "task",
+                                                "name": "[parameters('container_name')]",
                                                 "properties": {
                                                     "command": "[parameters('container_command')]",
                                                     "image": "[parameters('container_image')]",
@@ -106,7 +109,24 @@
                                                             "cpu": 2,
                                                             "memoryInGB": 2
                                                         }
-                                                    }
+                                                    },
+                                                    "volumeMounts": [
+                                                        {
+                                                            "name": "secrets",
+                                                            "mountPath": "/secrets",
+                                                            "readonly": true
+                                                        }
+                                                    ]
+                                                }
+                                            }
+                                        ],
+                                        "volumes": [
+                                            {
+                                                "name": "secrets",
+                                                "secret": {
+                                                    "client_secret": "@parameters('$client_secret')",
+                                                    "client_id": "@parameters('$client_id')",
+                                                    "tenant_id": "@parameters('$tenant_id')"
                                                 }
                                             }
                                         ],
@@ -122,7 +142,7 @@
                                 "method": "put",
                                 "path": "[variables('container_group_resource_id')]",
                                 "queries": {
-                                    "x-ms-api-version": "2017-10-01-preview"
+                                    "x-ms-api-version": "2017-12-01-preview"
                                 }
                             }
                         },
@@ -140,7 +160,7 @@
                                     }
                                 },
                                 "method": "get",
-                                "path": "[variables('container_group_resource_id')]",
+                                "path": "[variables('container_group_log_id')]",
                                 "queries": {
                                     "x-ms-api-version": "2017-10-01-preview"
                                 }
@@ -205,7 +225,13 @@
                         }
                     },
                     "$client_secret": {
-                        "value": "[parameters('client_secret')]"
+                        "value": "[base64(parameters('client_secret'))]"
+                    },
+                    "$client_id": {
+                        "value": "[base64(parameters('client_id'))]"
+                    },
+                    "$tenant_id": {
+                        "value": "[base64(parameters('tenant_id'))]"
                     }
                 }
             },
