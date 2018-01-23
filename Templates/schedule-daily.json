@@ -1,0 +1,197 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "connections_aci_name": {
+            "defaultValue": "aci",
+            "type": "string"
+        },
+        "workflow_name": {
+            "defaultValue": "daily-schedule-workflow",
+            "type": "string"
+        }
+    },
+    "variables": {
+        "container_group_resource_id": "[concat('/subscriptions/', deployment().subscriptionId ,'/resourceGroups/', deployment().resourceGroup, '/providers/Microsoft.ContainerInstance/containerGroups/task-', deployment().name]"
+    },
+    "resources": [
+        {
+            "type": "Microsoft.Logic/workflows",
+            "name": "[parameters('workflow_name')]",
+            "apiVersion": "2016-06-01",
+            "location": "westus",
+            "tags": {},
+            "scale": null,
+            "properties": {
+                "state": "Enabled",
+                "definition": {
+                    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+                    "contentVersion": "1.0.0.0",
+                    "parameters": {
+                        "$connections": {
+                            "defaultValue": {},
+                            "type": "Object"
+                        }
+                    },
+                    "triggers": {
+                        "Recurrence": {
+                            "recurrence": {
+                                "frequency": "Day",
+                                "interval": 1
+                            },
+                            "type": "Recurrence"
+                        }
+                    },
+                    "actions": {
+                        "create_container": {
+                            "runAfter": {},
+                            "type": "ApiConnection",
+                            "inputs": {
+                                "body": {
+                                    "location": "westus",
+                                    "properties": {
+                                        "containers": [
+                                            {
+                                                "name": "azusage",
+                                                "properties": {
+                                                    "command": [
+                                                        "dotnet",
+                                                        "azusage.dll",
+                                                        "summary",
+                                                        "--output",
+                                                        "csv",
+                                                        "--client",
+                                                        "[parameters('client_id')]",
+                                                        "--secret",
+                                                        "[parameters('client_secret')]",
+                                                        "--tenant",
+                                                        "[parameters('tenant_id')]"
+                                                    ],
+                                                    "image": "yangl/azure-usage:alpine",
+                                                    "resources": {
+                                                        "requests": {
+                                                            "cpu": 1,
+                                                            "memoryInGB": 1
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        ],
+                                        "osType": "Linux",
+                                        "restartPolicy": "OnFailure"
+                                    }
+                                },
+                                "host": {
+                                    "connection": {
+                                        "name": "@parameters('$connections')['aci']['connectionId']"
+                                    }
+                                },
+                                "method": "put",
+                                "path": "[parameters('container_group_resource_id')]",
+                                "queries": {
+                                    "x-ms-api-version": "2017-10-01-preview"
+                                }
+                            }
+                        },
+                        "Get_logs_of_a_container": {
+                            "runAfter": {
+                                "Until": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "ApiConnection",
+                            "inputs": {
+                                "host": {
+                                    "connection": {
+                                        "name": "@parameters('$connections')['aci']['connectionId']"
+                                    }
+                                },
+                                "method": "get",
+                                "path": "[parameters('container_group_resource_id')]",
+                                "queries": {
+                                    "x-ms-api-version": "2017-10-01-preview"
+                                }
+                            }
+                        },
+                        "Until": {
+                            "actions": {
+                                "Delay_10s": {
+                                    "runAfter": {
+                                        "Get_properties_of_a_container_group": [
+                                            "Succeeded"
+                                        ]
+                                    },
+                                    "type": "Wait",
+                                    "inputs": {
+                                        "interval": {
+                                            "count": 10,
+                                            "unit": "Second"
+                                        }
+                                    }
+                                },
+                                "Get_properties_of_a_container_group": {
+                                    "runAfter": {},
+                                    "type": "ApiConnection",
+                                    "inputs": {
+                                        "host": {
+                                            "connection": {
+                                                "name": "@parameters('$connections')['aci']['connectionId']"
+                                            }
+                                        },
+                                        "method": "get",
+                                        "path": "[parameters('container_group_resource_id')]",
+                                        "queries": {
+                                            "x-ms-api-version": "2017-10-01-preview"
+                                        }
+                                    }
+                                }
+                            },
+                            "runAfter": {
+                                "create_container": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "expression": "@equals(body('Get_properties_of_a_container_group')?['properties']?['instanceView']?['state'], 'Succeeded')",
+                            "limit": {
+                                "count": 60,
+                                "timeout": "PT1H"
+                            },
+                            "type": "Until"
+                        }
+                    },
+                    "outputs": {}
+                },
+                "parameters": {
+                    "$connections": {
+                        "value": {
+                            "aci": {
+                                "connectionId": "[resourceId('Microsoft.Web/connections', parameters('connections_aci_name'))]",
+                                "connectionName": "[parameters('connections_aci_name')]",
+                                "id": "[concat('/subscriptions/', deployment().subscriptionId, '/providers/Microsoft.Web/locations/westus/managedApis/', parameters('connections_aci_name'))]"
+                            }
+                        }
+                    }
+                }
+            },
+            "dependsOn": [
+                "[resourceId('Microsoft.Web/connections', parameters('connections_aci_name'))]",
+                "[resourceId('Microsoft.Web/connections', parameters('connections_azureblob_name'))]"
+            ]
+        },
+        {
+            "type": "Microsoft.Web/connections",
+            "name": "[parameters('connections_aci_name')]",
+            "apiVersion": "2016-06-01",
+            "location": "westus",
+            "scale": null,
+            "properties": {
+                "displayName": "aciconnector",
+                "customParameterValues": {},
+                "api": {
+                    "id": "[concat('/subscriptions/', deployment().subscriptionId, '/providers/Microsoft.Web/locations/westus/managedApis/', parameters('connections_aci_name'))]"
+                }
+            },
+            "dependsOn": []
+        }
+    ]
+}
