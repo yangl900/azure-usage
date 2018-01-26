@@ -64,15 +64,15 @@ az group deployment create -g azure-usage-report -n task --template-uri https://
 
 2. Login your account to connect Logic App and Azure Container Instance
 
-After the deployment complete you should see 2 resources in the resource group from Azure Portal (https://portal.azure.com):
-![Resource Group](images/resource_group.png)
+After the deployment complete you should see 2 resources in the resource group from Azure Portal:
+![Resource Group](Images/resource_group.png)
 
 Open the logic app workflow resource, and in the designer (click Edit) you should see following flow:
-![LogicApp Designer](images/workflow.png)
+![LogicApp Designer](Images/workflow.png)
 
 Click the ones with warning and sign in your account (or, use a service principal), this will allow the workflow to create container. And that's it! Should see the final workflow like following:
 
-![LogicApp Designer](images/workflow_final.png)
+![LogicApp Designer](Images/workflow_final.png)
 
 # Build and Test
 Build from commandline where .Net Core SDK available:
