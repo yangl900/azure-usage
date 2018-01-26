@@ -50,6 +50,30 @@ az container logs -g demo -n azusage
 docker run yangl/azure-usage:alpine summary --output table --client <sp-client-id> --secret <sp-secret> --tenant <tenant-id>
 ```
 
+### Run the container in Azure with webhook or timer
+To run this tool in Azure automatically we will use Azure Container Instances and Logic App. We will need create a Logic App workflow with a timer that triggers every day, the workflow will start an ACI container and wait it run to completion, then get output from container logs. The output can be saved to a storage blob using storage connector, or send email via outlook/gmail connector.
+
+All we need is 2 steps:
+
+1. Deploy a logic app workflow and an API connection to ACI. Run following command in Azure Cloud Shell.
+
+```
+az group create -l westus -n azure-usage-report
+az group deployment create -g azure-usage-report -n task --template-uri https://raw.githubusercontent.com/yangl900/azure-usage/master/Templates/schedule-daily.json --parameters client_secret=mysecret client_id=my_spn_client_id tenant_id=my_tenant_id
+```
+
+2. Login your account to connect Logic App and Azure Container Instance
+
+After the deployment complete you should see 2 resources in the resource group from Azure Portal (https://portal.azure.com):
+![Resource Group](https://raw.githubusercontent.com/yangl900/azure-usage/master/images/resource_group.png)
+
+Open the logic app workflow resource, and in the designer (click Edit) you should see following flow:
+![LogicApp Designer](https://raw.githubusercontent.com/yangl900/azure-usage/master/images/workflow.png)
+
+Click the ones with warning and sign in your account (or, use a service principal), this will allow the workflow to create container. And that's it! Should see the final workflow like following:
+
+![LogicApp Designer](https://raw.githubusercontent.com/yangl900/azure-usage/master/images/workflow_final.png)
+
 # Build and Test
 Build from commandline where .Net Core SDK available:
 ```
