@@ -70,9 +70,11 @@ After the deployment complete you should see 2 resources in the resource group f
 Open the logic app workflow resource, and in the designer (click Edit) you should see following flow:
 ![LogicApp Designer](Images/workflow.png)
 
-Click the ones with warning and sign in your account (or, use a service principal), this will allow the workflow to create container. And that's it! Should see the final workflow like following:
+Click the ones with warning and sign in your account (or, use a service principal), this will allow the workflow to create container. And that's it! 
 
-![LogicApp Designer](Images/workflow_final.png)
+Trigger the workflow should see the results like following:
+
+![LogicApp Designer](Images/workflow_result.png)
 
 # Build and Test
 Build from commandline where .Net Core SDK available:
