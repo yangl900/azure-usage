@@ -30,6 +30,16 @@ namespace azure_usage_report
                     .ReadAsStringAsync()
                     .ConfigureAwait(continueOnCapturedContext: false);
                 
+                if (response.StatusCode == HttpStatusCode.BadRequest)
+                {
+                    var errorResponse = JsonConvert.DeserializeObject<ErrorResponseMessage>(content);
+                    
+                    if (errorResponse?.Error?.Code == "NoRegisteredProviderFound")
+                    {
+                        return new Usage[0];
+                    }
+                }
+
                 if (response.StatusCode != HttpStatusCode.OK)
                 {
                     throw new InvalidOperationException($"Failed to get compute usage. Response: '{response.StatusCode}': '{content}'.");
